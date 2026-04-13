@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+  <meta name="theme-color" content="#C43D00"/>
+  <meta name="description" content="Dagbon Dispatch - Fast Delivery Across Northern Region Ghana"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Dagbon Dispatch"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <title>Dagbon Dispatch</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800;900&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    :root {
+      --primary:#E8500A; --primary-dark:#C43D00; --primary-light:#FF6B2B;
+      --accent:#FFB020; --bg:#0A0500; --card:#160C00; --card2:#1E1100;
+      --border:#2A1800; --text:#FFF5E6; --muted:#9A7A5A;
+      --success:#22C55E; --danger:#EF4444; --info:#38BDF8;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html,body { height:100%; overflow-x:hidden; }
+    body { background:var(--bg); font-family:'DM Sans',sans-serif; color:var(--text); }
+    #root { min-height:100vh; }
+    input,select,button { font-family:'DM Sans',sans-serif; }
+    select option { background:#1E1100; color:var(--text); }
+    ::-webkit-scrollbar { width:3px; height:3px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .fade-up  { animation:fadeUp 0.4s ease forwards; }
+    .fade-up-1{ animation:fadeUp 0.4s 0.1s ease both; }
+    .fade-up-2{ animation:fadeUp 0.4s 0.2s ease both; }
+    .fade-up-3{ animation:fadeUp 0.4s 0.3s ease both; }
+    .fade-up-4{ animation:fadeUp 0.4s 0.4s ease both; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+const TOWNS = ["Tamale","Gushegu","Yendi","Savelugu","Damongo","Bimbilla","Walewale","Tolon","Karaga","Nanton"];
+const PRICE_MAP = {
+  "Tamale-Gushegu":35,"Gushegu-Tamale":35,"Tamale-Yendi":50,"Yendi-Tamale":50,
+  "Tamale-Savelugu":20,"Savelugu-Tamale":20,"Tamale-Karaga":40,"Karaga-Tamale":40,
+  "Tamale-Nanton":25,"Nanton-Tamale":25,"Tamale-Walewale":55,"Walewale-Tamale":55,
+  "Tamale-Damongo":65,"Damongo-Tamale":65,"Tamale-Bimbilla":70,"Bimbilla-Tamale":70,
+};
+const SAMPLE_ORDERS = [
+  {id:"DD-0041",from:"Tamale",to:"Gushegu",item:"Groceries (5kg)",status:"delivered",price:35,rider:"Yakubu A.",date:"Apr 7",customer:"Abiba F."},
+  {id:"DD-0042",from:"Yendi",to:"Tamale",item:"Electronics",status:"in_transit",price:50,rider:"Alhassan B.",date:"Apr 9",customer:"Issifu M."},
+  {id:"DD-0043",from:"Tamale",to:"Savelugu",item:"Fabric (2 bags)",status:"pending",price:20,rider:null,date:"Apr 9",customer:"Zenabu S."},
+  {id:"DD-0044",from:"Damongo",to:"Tamale",item:"Fresh vegetables",status:"pending",price:65,rider:null,date:"Apr 9",customer:"Rashida Z."},
+];
+const SAMPLE_RIDERS = [
+  {id:1,name:"Yakubu Alhassan",phone:"0244-xxx-xxx",vehicle:"Motorbike",rating:4.8,deliveries:124,status:"available",earnings:850,town:"Tamale"},
+  {id:2,name:"Alhassan Baba",phone:"0556-xxx-xxx",vehicle:"Tricycle",rating:4.6,deliveries:89,status:"busy",earnings:640,town:"Gushegu"},
+  {id:3,name:"Fuseini Dramani",phone:"0200-xxx-xxx",vehicle:"Motorbike",rating:4.9,deliveries:201,status:"available",earnings:1120,town:"Yendi"},
+  {id:4,name:"Amina Salifu",phone:"0277-xxx-xxx",vehicle:"Motorbike",rating:4.7,deliveries:67,status:"available",earnings:490,town:"Tamale"},
+];
+
+const Badge = ({status}) => {
+  const map = {
+    pending:{bg:"rgba(255,176,32,0.15)",color:"#FFB020",label:"Pending"},
+    in_transit:{bg:"rgba(56,189,248,0.15)",color:"#38BDF8",label:"In Transit"},
+    delivered:{bg:"rgba(34,197,94,0.15)",color:"#22C55E",label:"Delivered"},
+    available:{bg:"rgba(34,197,94,0.15)",color:"#22C55E",label:"Available"},
+    busy:{bg:"rgba(239,68,68,0.15)",color:"#EF4444",label:"On Delivery"},
+    active:{bg:"rgba(34,197,94,0.15)",color:"#22C55E",label:"Active"},
+  };
+  const s=map[status]||map.pending;
+  return <span style={{background:s.bg,color:s.color,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700}}>{s.label}</span>;
+};
+
+const Card = ({children,style:sx={},onClick}) => (
+  <div onClick={onClick} style={{background:"var(--card)",borderRadius:20,padding:18,marginBottom:12,border:"1px solid var(--border)",...sx}}>{children}</div>
+);
+
+const Btn = ({children,onClick,variant="primary",style:sx={},disabled=false,loading=false}) => {
+  const v = {
+    primary:{background:disabled?"var(--border)":`linear-gradient(135deg,var(--primary-light),var(--primary-dark))`,color:disabled?"var(--muted)":"#fff",border:"none"},
+    secondary:{background:"transparent",color:"var(--accent)",border:"1.5px solid var(--accent)"},
+    ghost:{background:"transparent",color:"var(--muted)",border:"1.5px solid var(--border)"},
+    success:{background:"rgba(34,197,94,0.15)",color:"#22C55E",border:"1.5px solid #22C55E"},
+    danger:{background:"rgba(239,68,68,0.1)",color:"#EF4444",border:"1.5px solid #EF4444"},
+    dark:{background:"var(--card2)",color:"var(--text)",border:"1px solid var(--border)"},
+  };
+  return <button onClick={disabled||loading?null:onClick} style={{borderRadius:14,padding:"13px 20px",fontWeight:700,fontSize:14,cursor:disabled||loading?"not-allowed":"pointer",opacity:disabled?0.5:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"all 0.15s",...v[variant],...sx}}>
+    {loading&&<span style={{width:14,height:14,border:"2px solid currentColor",borderTopColor:"transparent",borderRadius:"50%",display:"inline-block",animation:"spin 0.7s linear infinite"}}/>}
+    {children}
+  </button>;
+};
+
+const Inp = ({label,placeholder,value,onChange,type="text",icon,hint}) => (
+  <div style={{marginBottom:16}}>
+    {label&&<div style={{fontSize:11,color:"var(--muted)",marginBottom:7,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{label}</div>}
+    <div style={{position:"relative"}}>
+      {icon&&<div style={{position:"absolute",left:14,top:"50%",transform:"translateY(-50%)",fontSize:18,pointerEvents:"none"}}>{icon}</div>}
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder}
+        style={{width:"100%",background:"var(--card2)",border:"1.5px solid var(--border)",borderRadius:14,padding:icon?"13px 14px 13px 42px":"13px 16px",color:"var(--text)",fontSize:15,boxSizing:"border-box",outline:"none"}}
+        onFocus={e=>e.target.style.borderColor="var(--primary)"}
+        onBlur={e=>e.target.style.borderColor="var(--border)"}/>
+    </div>
+    {hint&&<div style={{fontSize:11,color:"var(--muted)",marginTop:5}}>{hint}</div>}
+  </div>
+);
+
+const Sel = ({label,value,onChange,options}) => (
+  <div style={{marginBottom:16}}>
+    {label&&<div style={{fontSize:11,color:"var(--muted)",marginBottom:7,fontWeight:700,letterSpacing:1,textTransform:"uppercase"}}>{label}</div>}
+    <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",background:"var(--card2)",border:"1.5px solid var(--border)",borderRadius:14,padding:"13px 16px",color:"var(--text)",fontSize:15,boxSizing:"border-box",outline:"none",appearance:"none"}}>
+      {options.map(o=><option key={o} value={o}>{o}</option>)}
+    </select>
+  </div>
+);
+
+const Tabs = ({tabs,active,onSelect}) => (
+  <div style={{display:"flex",borderBottom:"1px solid var(--border)",overflowX:"auto",background:"var(--bg)",position:"sticky",top:64,zIndex:9}}>
+    {tabs.map(t=>(
+      <button key={t.key} onClick={()=>onSelect(t.key)}
+        style={{flex:"0 0 auto",padding:"13px 16px",background:"none",border:"none",borderBottom:active===t.key?"2.5px solid var(--primary)":"2.5px solid transparent",color:active===t.key?"var(--primary)":"var(--muted)",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap"}}>
+        {t.label}
+      </button>
+    ))}
+  </div>
+);
+
+const ErrorBox = ({msg}) => msg?(
+  <div style={{background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:12,padding:"11px 14px",marginBottom:14,fontSize:13,color:"#EF4444"}}>⚠️ {msg}</div>
+):null;
+
+const AppHeader = ({user,onLogout}) => (
+  <div style={{background:"var(--bg)",borderBottom:"1px solid var(--border)",padding:"14px 20px",position:"sticky",top:0,zIndex:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+    <div>
+      <div style={{fontSize:9,color:"var(--accent)",fontWeight:700,letterSpacing:2.5,textTransform:"uppercase",marginBottom:1}}>Northern Region 🇬🇭</div>
+      <div style={{fontSize:20,fontWeight:900,fontFamily:"'Syne',sans-serif",letterSpacing:-0.5}}>🚚 Dagbon Dispatch</div>
+    </div>
+    <div style={{display:"flex",alignItems:"center",gap:10}}>
+      <div style={{textAlign:"right"}}>
+        <div style={{fontSize:12,fontWeight:700}}>{user.name}</div>
+        <div style={{fontSize:10,color:"var(--muted)"}}>{user.role} · {user.town||"Tamale"}</div>
+      </div>
+      <div onClick={onLogout} style={{width:36,height:36,borderRadius:18,background:`linear-gradient(135deg,var(--primary-light),var(--primary-dark))`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,cursor:"pointer"}}>
+        {user.role==="Customer"?"🛍️":user.role==="Rider"?"🏍️":user.role==="Business"?"🏪":"⚙️"}
+      </div>
+    </div>
+  </div>
+);
+
+function SplashScreen({onNavigate}) {
+  return (
+    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at top,#2A0E00 0%,var(--bg) 60%)`,display:"flex",flexDirection:"column",padding:24}}>
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
+        <div className="fade-up" style={{fontSize:80,marginBottom:20,filter:"drop-shadow(0 0 40px rgba(232,80,10,0.5))"}}>🚚</div>
+        <div className="fade-up-1" style={{fontFamily:"'Syne',sans-serif",fontSize:38,fontWeight:900,lineHeight:1.05,marginBottom:10,letterSpacing:-1}}>Dagbon<br/>Dispatch</div>
+        <div className="fade-up-2" style={{fontSize:14,color:"var(--accent)",fontWeight:700,marginBottom:8}}>Fast Delivery Across Northern Region</div>
+        <div className="fade-up-3" style={{fontSize:12,color:"var(--muted)",marginBottom:16}}>Tamale · Gushegu · Yendi · Savelugu · Damongo</div>
+        <div className="fade-up-4" style={{display:"flex",gap:24,marginBottom:40}}>
+          {[{val:"10+",label:"Towns"},{val:"Fast",label:"Delivery"},{val:"MoMo",label:"Payment"}].map(s=>(
+            <div key={s.label} style={{textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:900,color:"var(--primary)",fontFamily:"'Syne',sans-serif"}}>{s.val}</div>
+              <div style={{fontSize:10,color:"var(--muted)",fontWeight:600}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="fade-up-4" style={{display:"flex",flexDirection:"column",gap:12}}>
+        <Btn onClick={()=>onNavigate("signup")} style={{width:"100%",padding:"16px",fontSize:16}}>🚀 Get Started — Sign Up Free</Btn>
+        <Btn onClick={()=>onNavigate("login")} variant="ghost" style={{width:"100%",padding:"16px",fontSize:16}}>👋 I Already Have an Account</Btn>
+        <div style={{textAlign:"center",fontSize:11,color:"var(--muted)",marginTop:8}}>🔒 Your data is safe · 🇬🇭 Built for Ghana</div>
+      </div>
+    </div>
+  );
+}
+
+function SignUpScreen({onSignUp,onGoLogin}) {
+  const [step,setStep]=useState(1);
+  const [role,setRole]=useState(null);
+  const [name,setName]=useState("");
+  const [phone,setPhone]=useState("");
+  const [town,setTown]=useState("Tamale");
+  const [password,setPassword]=useState("");
+  const [confirm,setConfirm]=useState("");
+  const [vehicle,setVehicle]=useState("Motorbike");
+  const [bizName,setBizName]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const roles=[{key:"Customer",icon:"🛍️",desc:"Send & receive goods",color:"#FF6B2B"},{key:"Rider",icon:"🏍️",desc:"Deliver orders & earn money",color:"#FFB020"},{key:"Business",icon:"🏪",desc:"Market seller / shop owner",color:"#38BDF8"}];
+  const validatePhone=p=>/^0[2345][0-9]{8}$/.test(p.replace(/-/g,""));
+  const handleSubmit=()=>{
+    setError("");
+    if(!name.trim()){setError("Please enter your full name");return;}
+    if(!validatePhone(phone)){setError("Please enter a valid Ghana phone number");return;}
+    if(password.length<6){setError("Password must be at least 6 characters");return;}
+    if(password!==confirm){setError("Passwords do not match");return;}
+    setLoading(true);
+    setTimeout(()=>{setLoading(false);onSignUp({name:name.trim(),phone,town,role,vehicle,bizName});},1800);
+  };
+  return (
+    <div style={{minHeight:"100vh",background:"var(--bg)"}}>
+      <div style={{background:`linear-gradient(135deg,var(--primary-dark),#1A0800)`,padding:"20px 20px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <button onClick={()=>step>1?setStep(step-1):onGoLogin()} style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:10,width:36,height:36,color:"var(--text)",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>←</button>
+          <div>
+            <div style={{fontSize:9,color:"var(--accent)",fontWeight:700,letterSpacing:2,textTransform:"uppercase"}}>Create Account</div>
+            <div style={{fontSize:18,fontWeight:900,fontFamily:"'Syne',sans-serif"}}>Step {step} of 3</div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {[1,2,3].map(s=><div key={s} style={{flex:1,height:4,borderRadius:2,background:step>=s?"var(--primary)":"var(--border)",transition:"background 0.3s"}}/>)}
+        </div>
+      </div>
+      <div style={{padding:20}}>
+        {step===1&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:900,marginBottom:4}}>Who are you? 👋</div>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:24}}>Select your role to continue</div>
+          {roles.map(r=>(
+            <Card key={r.key} onClick={()=>setRole(r.key)} style={{cursor:"pointer",border:role===r.key?"2px solid var(--primary)":"1px solid var(--border)",marginBottom:12,background:role===r.key?"rgba(232,80,10,0.08)":"var(--card)"}}>
+              <div style={{display:"flex",alignItems:"center",gap:14}}>
+                <div style={{fontSize:34,background:`${r.color}20`,borderRadius:14,width:58,height:58,display:"flex",alignItems:"center",justifyContent:"center"}}>{r.icon}</div>
+                <div style={{flex:1}}><div style={{fontWeight:700,fontSize:17,marginBottom:2}}>{r.key}</div><div style={{fontSize:12,color:"var(--muted)"}}>{r.desc}</div></div>
+                <div style={{width:24,height:24,borderRadius:12,border:`2px solid ${role===r.key?"var(--primary)":"var(--border)"}`,background:role===r.key?"var(--primary)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {role===r.key&&<div style={{width:8,height:8,borderRadius:4,background:"#fff"}}/>}
+                </div>
+              </div>
+            </Card>
+          ))}
+          <Btn onClick={()=>role&&setStep(2)} disabled={!role} style={{width:"100%",marginTop:8}}>Continue →</Btn>
+          <div style={{textAlign:"center",marginTop:20,fontSize:13,color:"var(--muted)"}}>Already have an account?{" "}<span onClick={onGoLogin} style={{color:"var(--accent)",fontWeight:700,cursor:"pointer"}}>Log In</span></div>
+        </div>}
+        {step===2&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:900,marginBottom:4}}>Your Details 📝</div>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:24}}>Tell us about yourself</div>
+          <Inp label="Full Name" placeholder="e.g. Abiba Fuseini" value={name} onChange={setName} icon="👤"/>
+          <Inp label="Phone Number" placeholder="e.g. 0244123456" value={phone} onChange={setPhone} icon="📱" type="tel" hint="Ghana mobile number (MTN, Vodafone, AirtelTigo)"/>
+          <Sel label="Your Town" value={town} onChange={setTown} options={TOWNS}/>
+          {role==="Rider"&&<Sel label="Vehicle Type" value={vehicle} onChange={setVehicle} options={["Motorbike","Tricycle (Aboboyaa)","Bicycle","Car/Van/Pickup"]}/>}
+          {role==="Business"&&<Inp label="Business / Shop Name" placeholder="e.g. Hajia Mariama Provisions" value={bizName} onChange={setBizName} icon="🏪"/>}
+          <ErrorBox msg={error}/>
+          <Btn onClick={()=>{if(!name.trim()){setError("Enter your name");return;}if(!validatePhone(phone)){setError("Enter a valid phone number");return;}setError("");setStep(3);}} style={{width:"100%",marginTop:8}}>Continue →</Btn>
+        </div>}
+        {step===3&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:900,marginBottom:4}}>Secure Your Account 🔒</div>
+          <div style={{fontSize:13,color:"var(--muted)",marginBottom:24}}>Create a strong password</div>
+          <Inp label="Create Password" placeholder="At least 6 characters" value={password} onChange={setPassword} icon="🔒" type="password"/>
+          <Inp label="Confirm Password" placeholder="Repeat your password" value={confirm} onChange={setConfirm} icon="✅" type="password"/>
+          <ErrorBox msg={error}/>
+          <Card style={{background:"rgba(232,80,10,0.07)",border:"1px solid rgba(232,80,10,0.2)",marginBottom:20}}>
+            <div style={{fontSize:11,color:"var(--accent)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Account Summary</div>
+            {[{icon:"👤",val:name},{icon:"📱",val:phone},{icon:"📍",val:town},{icon:role==="Customer"?"🛍️":role==="Rider"?"🏍️":"🏪",val:`${role}${role==="Rider"?` · ${vehicle}`:""}${role==="Business"&&bizName?` · ${bizName}`:""}`}].map((r,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"5px 0",borderBottom:i<3?"1px solid var(--border)":"none"}}>
+                <span style={{fontSize:14}}>{r.icon}</span><span style={{fontSize:13}}>{r.val}</span>
+              </div>
+            ))}
+          </Card>
+          <Btn onClick={handleSubmit} loading={loading} disabled={loading||!password||!confirm} style={{width:"100%"}}>{loading?"Creating your account...":"✅ Create Account"}</Btn>
+          <div style={{fontSize:11,color:"var(--muted)",textAlign:"center",marginTop:12,lineHeight:1.6}}>By creating an account you agree to our Terms of Service and Privacy Policy</div>
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({onLogin,onGoSignUp}) {
+  const [phone,setPhone]=useState("");
+  const [password,setPassword]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const handleLogin=()=>{
+    setError("");
+    if(!phone){setError("Please enter your phone number");return;}
+    if(!password){setError("Please enter your password");return;}
+    setLoading(true);
+    setTimeout(()=>{
+      setLoading(false);
+      const p=phone.replace(/-/g,"");
+      const role=p.startsWith("05")?"Rider":p.startsWith("03")?"Business":p.startsWith("09")?"Admin":"Customer";
+      onLogin({phone,role,name:"Welcome back!",town:"Tamale"});
+    },1400);
+  };
+  return (
+    <div style={{minHeight:"100vh",background:`radial-gradient(ellipse at top,#1A0800 0%,var(--bg) 55%)`}}>
+      <div style={{padding:"48px 24px 24px",textAlign:"center"}}>
+        <div className="fade-up" style={{fontSize:56,marginBottom:12}}>🚚</div>
+        <div className="fade-up-1" style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:900,marginBottom:4}}>Welcome Back!</div>
+        <div className="fade-up-2" style={{fontSize:13,color:"var(--muted)",marginBottom:36}}>Log in to Dagbon Dispatch</div>
+      </div>
+      <div style={{padding:"0 24px 24px"}}>
+        <div className="fade-up-2">
+          <Inp label="Phone Number" placeholder="e.g. 0244123456" value={phone} onChange={setPhone} icon="📱" type="tel"/>
+          <Inp label="Password" placeholder="Your password" value={password} onChange={setPassword} icon="🔒" type="password"/>
+          <ErrorBox msg={error}/>
+          <Btn onClick={handleLogin} loading={loading} disabled={loading} style={{width:"100%",padding:"15px",fontSize:16,marginBottom:14}}>🔓 Log In</Btn>
+          <div style={{textAlign:"center",marginBottom:24}}><span style={{fontSize:13,color:"var(--accent)",fontWeight:700,cursor:"pointer"}}>Forgot password?</span></div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:12,margin:"0 0 20px"}}>
+          <div style={{flex:1,height:1,background:"var(--border)"}}/>
+          <span style={{fontSize:12,color:"var(--muted)",fontWeight:600}}>NEW TO DAGBON DISPATCH?</span>
+          <div style={{flex:1,height:1,background:"var(--border)"}}/>
+        </div>
+        <Btn onClick={onGoSignUp} variant="secondary" style={{width:"100%",padding:"15px",fontSize:15}}>➕ Create Free Account</Btn>
+        <Card style={{marginTop:20,background:"rgba(255,176,32,0.05)",border:"1px solid rgba(255,176,32,0.15)"}}>
+          <div style={{fontSize:11,color:"var(--accent)",fontWeight:700,marginBottom:8}}>🧪 DEMO — TEST ACCOUNTS</div>
+          <div style={{fontSize:12,color:"var(--muted)",lineHeight:2}}>
+            📱 02xx... → <span style={{color:"var(--text)"}}>Customer</span><br/>
+            📱 05xx... → <span style={{color:"var(--text)"}}>Rider</span><br/>
+            📱 03xx... → <span style={{color:"var(--text)"}}>Business</span><br/>
+            📱 09xx... → <span style={{color:"var(--text)"}}>Admin</span>
+          </div>
+          <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>Any password works in demo mode</div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ProfileTab({user,onLogout}) {
+  return (
+    <div className="fade-up">
+      <Card style={{textAlign:"center",padding:28,background:`linear-gradient(135deg,rgba(232,80,10,0.15),rgba(232,80,10,0.05))`,border:"1px solid rgba(232,80,10,0.2)"}}>
+        <div style={{fontSize:56,marginBottom:10}}>{user.role==="Customer"?"🛍️":user.role==="Rider"?"🏍️":user.role==="Business"?"🏪":"⚙️"}</div>
+        <div style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:900,marginBottom:4}}>{user.name}</div>
+        <div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}>📱 {user.phone}</div>
+        <Badge status="active"/>
+      </Card>
+      <Card>
+        <div style={{fontSize:12,color:"var(--muted)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:14}}>Account Details</div>
+        {[{label:"Role",val:user.role,icon:"🎭"},{label:"Phone",val:user.phone,icon:"📱"},{label:"Town",val:user.town||"Tamale",icon:"📍"},{label:"Member Since",val:"April 2026",icon:"📅"},{label:"Status",val:"Active ✅",icon:"🔐"}].map(r=>(
+          <div key={r.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:14}}>{r.icon}</span><span style={{fontSize:13,color:"var(--muted)"}}>{r.label}</span></div>
+            <span style={{fontSize:13,fontWeight:600}}>{r.val}</span>
+          </div>
+        ))}
+      </Card>
+      <Card style={{background:"rgba(255,176,32,0.05)",border:"1px solid rgba(255,176,32,0.15)"}}>
+        <div style={{fontSize:12,color:"var(--accent)",fontWeight:700,marginBottom:10}}>App Info</div>
+        <div style={{fontSize:13,color:"var(--muted)",lineHeight:2}}>Version: <span style={{color:"var(--text)"}}>1.0.0</span><br/>Region: <span style={{color:"var(--text)"}}>Northern Region, Ghana 🇬🇭</span><br/>Support: <span style={{color:"var(--accent)"}}>dagbondispatch@gmail.com</span></div>
+      </Card>
+      <Btn onClick={onLogout} variant="danger" style={{width:"100%",marginTop:4}}>🚪 Log Out</Btn>
+    </div>
+  );
+}
+
+function CustomerView({user,onLogout}) {
+  const [tab,setTab]=useState("send");
+  const [from,setFrom]=useState(user.town||"Tamale");
+  const [to,setTo]=useState("Gushegu");
+  const [item,setItem]=useState("");
+  const [recipientName,setRecipientName]=useState("");
+  const [recipientPhone,setRecipientPhone]=useState("");
+  const [booked,setBooked]=useState(false);
+  const [myOrders,setMyOrders]=useState(SAMPLE_ORDERS);
+  const price=()=>from===to?0:PRICE_MAP[`${from}-${to}`]||45;
+  const duration=()=>({
+    "Tamale-Gushegu":"1–2 hrs","Tamale-Yendi":"2–3 hrs","Tamale-Savelugu":"30–45 min","Tamale-Damongo":"3–4 hrs"
+  }[`${from}-${to}`]||"1–3 hrs");
+  const handleBook=()=>{
+    if(!item.trim()||!recipientName.trim()||!recipientPhone.trim()) return;
+    const newOrder={id:"DD-"+Math.floor(1000+Math.random()*9000),from,to,item,status:"pending",price:price(),rider:null,date:"Today",customer:user.name,recipientName,recipientPhone};
+    setMyOrders(prev=>[newOrder,...prev]);
+    setBooked(true);
+  };
+  if(booked) return (
+    <div style={{padding:24,textAlign:"center"}} className="fade-up">
+      <div style={{fontSize:72,marginBottom:16}}>✅</div>
+      <div style={{fontFamily:"'Syne',sans-serif",fontSize:24,fontWeight:900,color:"var(--success)",marginBottom:8}}>Order Placed!</div>
+      <div style={{fontSize:13,color:"var(--muted)",marginBottom:28,lineHeight:1.7}}>Your delivery from <strong style={{color:"var(--text)"}}>{from}</strong> to <strong style={{color:"var(--text)"}}>{to}</strong> has been submitted. A rider will be assigned shortly.</div>
+      <Card style={{background:"rgba(34,197,94,0.08)",border:"1px solid rgba(34,197,94,0.2)",marginBottom:20,textAlign:"left"}}>
+        {[{label:"Route",val:`${from} → ${to}`},{label:"Item",val:item},{label:"Est. Cost",val:`GH₵ ${price()}`},{label:"Est. Time",val:duration()},{label:"Payment",val:"Cash / MoMo on delivery"}].map(r=>(
+          <div key={r.label} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid var(--border)"}}>
+            <span style={{fontSize:12,color:"var(--muted)"}}>{r.label}</span>
+            <span style={{fontSize:13,fontWeight:600}}>{r.val}</span>
+          </div>
+        ))}
+      </Card>
+      <Btn onClick={()=>{setBooked(false);setItem("");setRecipientName("");setRecipientPhone("");}} style={{width:"100%"}}>📦 Book Another Delivery</Btn>
+    </div>
+  );
+  return (
+    <div>
+      <Tabs active={tab} onSelect={setTab} tabs={[{key:"send",label:"📦 Send"},{key:"track",label:"📍 Track"},{key:"history",label:"🕒 History"},{key:"profile",label:"👤 Me"}]}/>
+      <div style={{padding:20}}>
+        {tab==="send"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:4}}>Book a Delivery</div>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:20}}>Fill in the details below</div>
+          <Sel label="Pickup Location (From)" value={from} onChange={setFrom} options={TOWNS}/>
+          <Sel label="Destination (To)" value={to} onChange={setTo} options={TOWNS}/>
+          <Inp label="Item Description" placeholder="e.g. Groceries, clothes, electronics..." value={item} onChange={setItem} icon="📦"/>
+          <Inp label="Recipient Name" placeholder="Who is receiving the item?" value={recipientName} onChange={setRecipientName} icon="👤"/>
+          <Inp label="Recipient Phone" placeholder="Recipient's phone number" value={recipientPhone} onChange={setRecipientPhone} icon="📱" type="tel"/>
+          {from!==to&&<Card style={{background:"rgba(255,176,32,0.07)",border:"1px solid rgba(255,176,32,0.25)",marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>ESTIMATED COST</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:28,fontWeight:900,color:"var(--accent)"}}>GH₵ {price()}</div><div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>⏱️ {duration()}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>PAYMENT</div><div style={{fontSize:13,fontWeight:700}}>📱 MoMo</div><div style={{fontSize:11,color:"var(--muted)"}}>or Cash</div></div>
+            </div>
+          </Card>}
+          <Btn onClick={handleBook} disabled={!item.trim()||!recipientName.trim()||!recipientPhone.trim()||from===to} style={{width:"100%"}}>🚀 Confirm Booking</Btn>
+          {from===to&&<div style={{fontSize:12,color:"var(--danger)",textAlign:"center",marginTop:8}}>⚠️ Pickup and destination cannot be the same</div>}
+        </div>}
+        {tab==="track"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>Track Orders</div>
+          {myOrders.filter(o=>o.status==="in_transit").length===0&&<div style={{textAlign:"center",padding:40,color:"var(--muted)"}}><div style={{fontSize:40,marginBottom:12}}>🔍</div><div>No active deliveries right now</div></div>}
+          {myOrders.filter(o=>o.status==="in_transit").map(o=>(
+            <Card key={o.id}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><div style={{fontWeight:700,fontSize:13,color:"var(--accent)"}}>{o.id}</div><Badge status={o.status}/></div>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>{o.from} → {o.to}</div>
+              <div style={{fontSize:13,color:"var(--muted)",marginBottom:14}}>📦 {o.item}</div>
+              <div style={{background:"var(--card2)",borderRadius:12,padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontSize:12,color:"var(--muted)"}}>🏍️ Rider</span><span style={{fontSize:13,fontWeight:700}}>{o.rider}</span></div>
+                <div style={{height:6,background:"var(--border)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:"65%",background:`linear-gradient(90deg,var(--primary),var(--accent))`,borderRadius:3}}/></div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:6}}>📍 Estimated arrival: ~45 minutes</div>
+              </div>
+            </Card>
+          ))}
+        </div>}
+        {tab==="history"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>My Orders</div>
+          {myOrders.map(o=>(
+            <Card key={o.id}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontWeight:700,fontSize:12,color:"var(--accent)"}}>{o.id}</span><Badge status={o.status}/></div>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{o.from} → {o.to}</div>
+              <div style={{fontSize:13,color:"var(--muted)",marginBottom:10}}>📦 {o.item}</div>
+              <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"var(--muted)"}}>{o.date}</span><span style={{fontFamily:"'Syne',sans-serif",fontSize:16,fontWeight:700,color:"var(--accent)"}}>GH₵ {o.price}</span></div>
+            </Card>
+          ))}
+        </div>}
+        {tab==="profile"&&<ProfileTab user={user} onLogout={onLogout}/>}
+      </div>
+    </div>
+  );
+}
+
+function RiderView({user,onLogout}) {
+  const [tab,setTab]=useState("jobs");
+  const [jobs,setJobs]=useState(SAMPLE_ORDERS.filter(o=>o.status==="pending"));
+  const [accepted,setAccepted]=useState(null);
+  const rider=SAMPLE_RIDERS[0];
+  const acceptJob=id=>{setAccepted(id);setJobs(prev=>prev.map(j=>j.id===id?{...j,status:"in_transit",rider:user.name}:j));};
+  return (
+    <div>
+      <Tabs active={tab} onSelect={setTab} tabs={[{key:"jobs",label:"📋 Jobs"},{key:"active",label:"🚦 Active"},{key:"earnings",label:"💰 Earnings"},{key:"profile",label:"👤 Me"}]}/>
+      <div style={{padding:20}}>
+        {tab==="jobs"&&<div className="fade-up">
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div><div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900}}>Available Jobs</div><div style={{fontSize:12,color:"var(--muted)"}}>{jobs.filter(j=>j.status==="pending").length} jobs near you</div></div>
+            <Badge status="available"/>
+          </div>
+          {jobs.filter(j=>j.status==="pending").length===0&&<div style={{textAlign:"center",padding:40,color:"var(--muted)"}}><div style={{fontSize:40,marginBottom:12}}>🏍️</div><div>No jobs available right now</div></div>}
+          {jobs.filter(j=>j.status==="pending").map(o=>(
+            <Card key={o.id}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontWeight:700,fontSize:15}}>{o.from} → {o.to}</div><div style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:900,color:"var(--accent)"}}>GH₵ {o.price}</div></div>
+              <div style={{fontSize:13,color:"var(--muted)",marginBottom:4}}>📦 {o.item}</div>
+              <div style={{fontSize:12,color:"var(--muted)",marginBottom:14}}>👤 {o.customer} · {o.date}</div>
+              <Btn onClick={()=>acceptJob(o.id)} variant="success" style={{width:"100%"}}>✅ Accept This Job</Btn>
+            </Card>
+          ))}
+        </div>}
+        {tab==="active"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>Active Delivery</div>
+          {jobs.filter(o=>o.id===accepted).length===0&&<div style={{textAlign:"center",padding:40,color:"var(--muted)"}}><div style={{fontSize:40,marginBottom:12}}>🚦</div><div>No active delivery</div><div style={{fontSize:12,marginTop:4}}>Accept a job to start delivering</div></div>}
+          {jobs.filter(o=>o.id===accepted).map(o=>(
+            <Card key={o.id} style={{border:"1.5px solid var(--info)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontWeight:700,color:"var(--info)"}}>{o.id}</span><Badge status="in_transit"/></div>
+              <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>{o.from} → {o.to}</div>
+              <div style={{fontSize:13,color:"var(--muted)",marginBottom:16}}>📦 {o.item}</div>
+              <div style={{display:"flex",gap:10}}>
+                <Btn variant="dark" style={{flex:1,fontSize:13}}>📞 Call Customer</Btn>
+                <Btn variant="success" style={{flex:1,fontSize:13}}>✅ Delivered</Btn>
+              </div>
+            </Card>
+          ))}
+        </div>}
+        {tab==="earnings"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>My Earnings</div>
+          <Card style={{background:`linear-gradient(135deg,rgba(255,176,32,0.15),rgba(232,80,10,0.1))`,border:"1px solid rgba(255,176,32,0.3)",marginBottom:16}}>
+            <div style={{fontSize:11,color:"var(--muted)",marginBottom:4,fontWeight:700}}>TOTAL EARNED THIS MONTH</div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontSize:40,fontWeight:900,color:"var(--accent)",margin:"6px 0"}}>GH₵ {rider.earnings}</div>
+            <div style={{display:"flex",gap:20,fontSize:12,color:"var(--muted)"}}><span>⭐ {rider.rating} rating</span><span>📦 {rider.deliveries} deliveries</span></div>
+          </Card>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+            {[{label:"Today",val:"GH₵ 85",icon:"📅"},{label:"This Week",val:"GH₵ 340",icon:"📆"},{label:"Pending",val:"GH₵ 0",icon:"⏳"},{label:"Withdrawn",val:"GH₵ 510",icon:"✅"}].map(s=>(
+              <Card key={s.label} style={{padding:14,textAlign:"center"}}>
+                <div style={{fontSize:20,marginBottom:4}}>{s.icon}</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:16,fontWeight:900,color:"var(--accent)"}}>{s.val}</div>
+                <div style={{fontSize:11,color:"var(--muted)"}}>{s.label}</div>
+              </Card>
+            ))}
+          </div>
+          <Btn style={{width:"100%"}}>📱 Withdraw to MoMo</Btn>
+        </div>}
+        {tab==="profile"&&<ProfileTab user={user} onLogout={onLogout}/>}
+      </div>
+    </div>
+  );
+}
+
+function BusinessView({user,onLogout}) {
+  const [tab,setTab]=useState("overview");
+  return (
+    <div>
+      <Tabs active={tab} onSelect={setTab} tabs={[{key:"overview",label:"📊 Overview"},{key:"orders",label:"📦 Orders"},{key:"post",label:"➕ Post"},{key:"profile",label:"👤 Me"}]}/>
+      <div style={{padding:20}}>
+        {tab==="overview"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:4}}>{user.bizName||"My Business"}</div>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:20}}>📍 {user.town||"Tamale"}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+            {[{label:"Total Orders",val:"34",icon:"📦",color:"var(--accent)"},{label:"Revenue",val:"GH₵ 1,200",icon:"💰",color:"var(--success)"},{label:"Active Riders",val:"3",icon:"🏍️",color:"var(--info)"},{label:"Avg Delivery",val:"52 min",icon:"⏱️",color:"var(--primary-light)"}].map(s=>(
+              <Card key={s.label} style={{padding:16,textAlign:"center"}}>
+                <div style={{fontSize:26,marginBottom:6}}>{s.icon}</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:18,fontWeight:900,color:s.color}}>{s.val}</div>
+                <div style={{fontSize:11,color:"var(--muted)"}}>{s.label}</div>
+              </Card>
+            ))}
+          </div>
+        </div>}
+        {tab==="orders"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>Business Orders</div>
+          {SAMPLE_ORDERS.map(o=>(
+            <Card key={o.id}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontWeight:700,fontSize:12,color:"var(--accent)"}}>{o.id}</span><Badge status={o.status}/></div>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{o.from} → {o.to}</div>
+              <div style={{fontSize:13,color:"var(--muted)",marginBottom:8}}>📦 {o.item}</div>
+              <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:"var(--muted)"}}>👤 {o.customer}</span><span style={{fontFamily:"'Syne',sans-serif",fontSize:16,fontWeight:700,color:"var(--accent)"}}>GH₵ {o.price}</span></div>
+            </Card>
+          ))}
+        </div>}
+        {tab==="post"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:4}}>Post Delivery</div>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:20}}>Request a delivery for your customer</div>
+          <Inp label="Item Description" placeholder="e.g. Rice 10kg, yam tubers..." value="" onChange={()=>{}} icon="📦"/>
+          <Sel label="Pickup Town" value="Tamale" onChange={()=>{}} options={TOWNS}/>
+          <Sel label="Destination" value="Gushegu" onChange={()=>{}} options={TOWNS}/>
+          <Inp label="Customer Name" placeholder="Who is receiving?" value="" onChange={()=>{}} icon="👤"/>
+          <Inp label="Customer Phone" placeholder="Customer's phone number" value="" onChange={()=>{}} icon="📱" type="tel"/>
+          <Inp label="Agreed Price (GH₵)" placeholder="e.g. 35" value="" onChange={()=>{}} icon="💰" type="number"/>
+          <Btn style={{width:"100%"}}>📤 Post Delivery Request</Btn>
+        </div>}
+        {tab==="profile"&&<ProfileTab user={user} onLogout={onLogout}/>}
+      </div>
+    </div>
+  );
+}
+
+function AdminView({user,onLogout}) {
+  const [tab,setTab]=useState("dashboard");
+  return (
+    <div>
+      <Tabs active={tab} onSelect={setTab} tabs={[{key:"dashboard",label:"📊 Dashboard"},{key:"orders",label:"📦 Orders"},{key:"riders",label:"🏍️ Riders"},{key:"businesses",label:"🏪 Businesses"},{key:"profile",label:"👤 Me"}]}/>
+      <div style={{padding:20}}>
+        {tab==="dashboard"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:4}}>Platform Overview</div>
+          <div style={{fontSize:12,color:"var(--muted)",marginBottom:20}}>Northern Region, Ghana</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+            {[{label:"Total Orders",val:SAMPLE_ORDERS.length,icon:"📦",color:"var(--accent)"},{label:"Active Riders",val:3,icon:"🏍️",color:"var(--success)"},{label:"Revenue",val:"GH₵ 2,890",icon:"💰",color:"var(--primary-light)"},{label:"Businesses",val:2,icon:"🏪",color:"var(--info)"}].map(s=>(
+              <Card key={s.label} style={{padding:16}}>
+                <div style={{fontSize:24,marginBottom:6}}>{s.icon}</div>
+                <div style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:900,color:s.color}}>{s.val}</div>
+                <div style={{fontSize:11,color:"var(--muted)"}}>{s.label}</div>
+              </Card>
+            ))}
+          </div>
+          <Card>
+            <div style={{fontSize:12,color:"var(--muted)",fontWeight:700,letterSpacing:1,textTransform:"uppercase",marginBottom:14}}>Order Status</div>
+            {[{label:"Pending",count:2,color:"var(--accent)"},{label:"In Transit",count:1,color:"var(--info)"},{label:"Delivered",count:1,color:"var(--success)"}].map(s=>(
+              <div key={s.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+                <span style={{fontSize:13}}>{s.label}</span>
+                <span style={{fontWeight:800,color:s.color,fontSize:15}}>{s.count}</span>
+              </div>
+            ))}
+          </Card>
+        </div>}
+        {tab==="orders"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>All Orders</div>
+          {SAMPLE_ORDERS.map(o=>(
+            <Card key={o.id}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontWeight:700,fontSize:12,color:"var(--accent)"}}>{o.id}</span><Badge status={o.status}/></div>
+              <div style={{fontSize:14,fontWeight:600,marginBottom:2}}>{o.customer}</div>
+              <div style={{fontSize:12,color:"var(--muted)",marginBottom:8}}>{o.from} → {o.to} · 📦 {o.item}</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:12,color:"var(--muted)"}}>🏍️ {o.rider||"Unassigned"}</span>
+                <span style={{fontFamily:"'Syne',sans-serif",fontSize:16,fontWeight:700,color:"var(--accent)"}}>GH₵ {o.price}</span>
+              </div>
+              {o.status==="pending"&&<Btn variant="secondary" style={{width:"100%",marginTop:12,fontSize:13}}>Assign Rider</Btn>}
+            </Card>
+          ))}
+        </div>}
+        {tab==="riders"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>Registered Riders</div>
+          {SAMPLE_RIDERS.map(r=>(
+            <Card key={r.id}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <div><div style={{fontWeight:700,fontSize:15}}>{r.name}</div><div style={{fontSize:12,color:"var(--muted)"}}>{r.vehicle} · 📍 {r.town}</div></div>
+                <Badge status={r.status}/>
+              </div>
+              <div style={{display:"flex",gap:16,fontSize:12,color:"var(--muted)",marginBottom:12}}><span>⭐ {r.rating}</span><span>📦 {r.deliveries}</span><span>💰 GH₵ {r.earnings}</span></div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn variant="ghost" style={{flex:1,padding:"9px",fontSize:12}}>📞 Contact</Btn>
+                <Btn variant="secondary" style={{flex:1,padding:"9px",fontSize:12}}>Assign Job</Btn>
+              </div>
+            </Card>
+          ))}
+          <Btn variant="secondary" style={{width:"100%"}}>➕ Add New Rider</Btn>
+        </div>}
+        {tab==="businesses"&&<div className="fade-up">
+          <div style={{fontFamily:"'Syne',sans-serif",fontSize:20,fontWeight:900,marginBottom:16}}>Registered Businesses</div>
+          {[{name:"Central Market Tamale",owner:"Hajia Mariama",orders:34,revenue:1200},{name:"Gushegu Fresh Produce",owner:"Mr. Kofi Asante",orders:12,revenue:480}].map(b=>(
+            <Card key={b.name}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                <div><div style={{fontWeight:700,fontSize:15}}>{b.name}</div><div style={{fontSize:12,color:"var(--muted)"}}>👤 {b.owner}</div></div>
+                <Badge status="active"/>
+              </div>
+              <div style={{display:"flex",gap:16,fontSize:12,color:"var(--muted)"}}><span>📦 {b.orders} orders</span><span>💰 GH₵ {b.revenue}</span></div>
+            </Card>
+          ))}
+          <Btn variant="secondary" style={{width:"100%"}}>➕ Register Business</Btn>
+        </div>}
+        {tab==="profile"&&<ProfileTab user={user} onLogout={onLogout}/>}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [screen,setScreen]=useState("splash");
+  const [user,setUser]=useState(null);
+  const wrap=children=><div style={{fontFamily:"'DM Sans',sans-serif",background:"var(--bg)",minHeight:"100vh",color:"var(--text)",maxWidth:430,margin:"0 auto"}}>{children}</div>;
+  if(screen==="splash") return wrap(<SplashScreen onNavigate={setScreen}/>);
+  if(screen==="signup") return wrap(<SignUpScreen onSignUp={u=>{setUser(u);setScreen("app");}} onGoLogin={()=>setScreen("login")}/>);
+  if(screen==="login") return wrap(<LoginScreen onLogin={u=>{setUser(u);setScreen("app");}} onGoSignUp={()=>setScreen("signup")}/>);
+  return wrap(<>
+    <AppHeader user={user} onLogout={()=>{setUser(null);setScreen("splash");}}/>
+    {user.role==="Customer"&&<CustomerView user={user} onLogout={()=>{setUser(null);setScreen("splash");}}/>}
+    {user.role==="Rider"&&<RiderView user={user} onLogout={()=>{setUser(null);setScreen("splash");}}/>}
+    {user.role==="Business"&&<BusinessView user={user} onLogout={()=>{setUser(null);setScreen("splash");}}/>}
+    {user.role==="Admin"&&<AdminView user={user} onLogout={()=>{setUser(null);setScreen("splash");}}/>}
+  </>);
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
